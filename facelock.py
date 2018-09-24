@@ -1,5 +1,4 @@
 import cv2
-import sys
 import os
 import logging as log
 import datetime as dt
@@ -7,11 +6,12 @@ from time import sleep
 import time
 import click
 import platform
+import math
 
 
 def get_lock_screen_cmd():
     cmd_dict = {
-        'Linux' : 'gnome-screensaver-command --lock &',
+        'Linux' : 'gnome-screensaver-command --lock > /dev/null &',
         'Darwin': '/System/Library/CoreServices/Menu\ Extras/user.menu/Contents/Resources/CGSession -suspend'
     }
     os_type = platform.system()
@@ -22,17 +22,17 @@ def get_lock_screen_cmd():
 
 
 @click.command()
-@click.option('--delay-seconds', help='activate command after this many seconds without detecting a face', default=5)
+@click.option('-d', '--delay-seconds', help='activate command after this many seconds without detecting a face', default=5)
 @click.option('--sleep-seconds', help='sleep every this many seconds', default=0.5)
-def run(delay_seconds, sleep_seconds):
-    # cascPath = "/home/wei/dev/facelock/haarcascade_frontalface_default.xml"
-    faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-    log.basicConfig(filename='webcam.log',level=log.INFO)
+@click.option('--display', help='display a webcam window', is_flag=True, default=False)
+def run(delay_seconds, sleep_seconds, display):
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    log.basicConfig(level=log.INFO)
 
     video_capture = cv2.VideoCapture(0)
     anterior = 0
     counter = 0
-    TRIGGER = int(sleep_seconds * delay_seconds)
+    TRIGGER = int(delay_seconds/sleep_seconds)
     # fps = video_capture.get(cv2.CAP_PROP_FPS) # Gets the frames per second
     # multiplier = fps * seconds
 
@@ -45,16 +45,16 @@ def run(delay_seconds, sleep_seconds):
         ret, frame = video_capture.read()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        faces = faceCascade.detectMultiScale(
+        faces = face_cascade.detectMultiScale(
             gray,
             scaleFactor=1.1,
             minNeighbors=5,
-            minSize=(30, 30)
+            minSize=(50, 50)
         )
 
-        if len (faces) < 1:
+        if len(faces) < 1:
             counter += 1
-            log.info("no face at "+str(dt.datetime.now()) + ' counter='+ str(counter))
+            log.info("no face at %s, counter=%d" % (dt.datetime.now(), counter))
 
             if counter > TRIGGER:
 
@@ -63,17 +63,19 @@ def run(delay_seconds, sleep_seconds):
                 # cv2.destroyAllWindows()
                 # break
 
-        # Draw a rectangle around the faces
-        for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
 
         if anterior != len(faces):
             anterior = len(faces)
-            # log.info("faces: "+str(len(faces))+" at "+str(dt.datetime.now()))
+            log.info("faces: "+str(len(faces))+" at "+str(dt.datetime.now()))
             counter = 0
 
-        # Display the resulting frame
-        cv2.imshow('Face Detection', frame)
+        if display:
+            # Draw a rectangle around the faces
+            for (x, y, w, h) in faces:
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            # Display the resulting frame
+            cv2.imshow('Face Detection', frame)
 
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -85,6 +87,7 @@ def run(delay_seconds, sleep_seconds):
     # When everything is done, release the capture
     video_capture.release()
     cv2.destroyAllWindows()
+
 
 if __name__ == '__main__':
     run()
