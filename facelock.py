@@ -14,20 +14,27 @@ from pid.decorator import pidfile
 class FaceLock(object):
 
     def __init__(self):
-        self.cmd_dict = {
-            'Linux' : 'gnome-screensaver-command --lock > /dev/null &',
-            'Darwin': '/System/Library/CoreServices/Menu\ Extras/user.menu/Contents/Resources/CGSession -suspend'
-        }
-        # self.pid_file = os.path.join(tempfile.gettempdir(), sys.argv[0] + '.pid')
+        pass
 
-    def get_lock_screen_cmd(self):
+    def lock_screen(self) -> None:
+        """
+        run screen lock command on different platforms
+        :return: None
+        """
         os_type = platform.system()
-        if os_type in self.cmd_dict:
-            return self.cmd_dict[os_type]
-        else:
-            raise Exception('Unsupported OS platform, Linux and MacOS only.')
+        if os_type == 'Windows':
+            import ctypes
+            ctypes.windll.user32.LockWorkStation()
 
-    def run(self, delay_seconds, sleep_seconds, display):
+        elif os_type == 'Linux':
+            os.popen('gnome-screensaver-command --lock > /dev/null &')
+
+        elif os_type == 'Darwin':
+            os.popen('/System/Library/CoreServices/Menu\ Extras/user.menu/Contents/Resources/CGSession -suspend')
+        else:
+            raise Exception('Unsupported OS platform: %s' % os_type)
+
+    def run(self, delay_seconds, sleep_seconds, display, always):
         face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
         log.basicConfig(level=log.INFO)
 
@@ -54,15 +61,17 @@ class FaceLock(object):
 
             if len(faces) < 1:
                 counter += 1
-                log.info("no face at %s, counter=%d" % (dt.datetime.now(), counter))
+                log.info("[%s] no face detected, counter=%d" % (dt.datetime.now(), counter))
 
                 if counter > trigger:
-                    os.popen(self.get_lock_screen_cmd())
+                    self.lock_screen()
+
+                if not always:
                     sys.exit()
 
             if anterior != len(faces):
                 anterior = len(faces)
-                log.info("faces: "+str(len(faces))+" at "+str(dt.datetime.now()))
+                log.info("[%s] faces: $s"%(len(faces), dt.datetime.now()))
                 counter = 0
 
             if display:
@@ -89,15 +98,19 @@ class FaceLock(object):
               help='activate command after this many seconds without detecting a face')
 @click.option('--sleep-seconds', help='sleep every this many seconds', default=0.5)
 @click.option('--display', help='display a webcam window', is_flag=True, default=False)
-def main(trigger_seconds, sleep_seconds, display):
+@click.option('--always', help='do not exist after screen is locked', is_flag=True, default=False)
+def main(trigger_seconds, sleep_seconds, display, always):
     """
+    program entry
+
     :param trigger_seconds:
     :param sleep_seconds:
     :param display:
-    :return: None
+    :param always:
+    :return:
     """
     facelock = FaceLock()
-    facelock.run(trigger_seconds, sleep_seconds, display)
+    facelock.run(trigger_seconds, sleep_seconds, display, always)
 
 
 if __name__ == '__main__':

@@ -1,2 +1,5 @@
+click==6.7
 opencv-python==3.4.3.18
-click
+pid==2.2.0
+pidfile==0.1.1
+python-dateutil==2.6.1
