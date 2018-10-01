@@ -44,6 +44,7 @@ class FaceLock(object):
         trigger = int(delay_seconds/sleep_seconds)
 
         while True:
+            t1 = time.time()
             if not video_capture.isOpened():
                 print('Unable to load camera.')
                 sleep(3)
@@ -66,12 +67,14 @@ class FaceLock(object):
                 if counter > trigger:
                     self.lock_screen()
 
-                if not always:
-                    sys.exit()
+                    if not always:
+                        video_capture.release()
+                        cv2.destroyAllWindows()
+                        sys.exit()
 
             if anterior != len(faces):
                 anterior = len(faces)
-                log.info("[%s] faces: %d"%(dt.datetime.now(), len(faces)))
+                log.info("[%s] faces: %d" % (dt.datetime.now(), len(faces)))
                 counter = 0
 
             if display:
@@ -79,17 +82,13 @@ class FaceLock(object):
                 for (x, y, w, h) in faces:
                     cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
                 # Display the resulting frame
+                frame = cv2.resize(frame, (300, 200))
                 cv2.imshow('Face Detection', frame)
-            #
-            # if cv2.waitKey(1) & 0xFF == ord('q'):
-            #     break
+                cv2.waitKey(200)
 
-            # Display the resulting frame
-            #cv2.imshow('Video', frame)
-            time.sleep(sleep_seconds) # Sleep for x second
-        # When everything is done, release the capture
-        video_capture.release()
-        cv2.destroyAllWindows()
+            t2 = time.time()
+            sleep_time = max(0, sleep_seconds-(t2-t1))
+            time.sleep(sleep_time)  # Sleep for x second, discounting the running time of the program
 
 
 @pidfile(piddir=os.path.join(tempfile.gettempdir(), sys.argv[0]+'.pid'))
