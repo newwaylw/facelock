@@ -71,7 +71,7 @@ class FaceLock(object):
 
             if anterior != len(faces):
                 anterior = len(faces)
-                log.info("[%s] faces: $s"%(len(faces), dt.datetime.now()))
+                log.info("[%s] faces: %d"%(dt.datetime.now(), len(faces)))
                 counter = 0
 
             if display:
@@ -94,7 +94,7 @@ class FaceLock(object):
 
 @pidfile(piddir=os.path.join(tempfile.gettempdir(), sys.argv[0]+'.pid'))
 @click.command()
-@click.option('-t', '--trigger-seconds', default=5,
+@click.option('-t', '--trigger-seconds', default=20,
               help='activate command after this many seconds without detecting a face')
 @click.option('--sleep-seconds', help='sleep every this many seconds', default=0.5)
 @click.option('--display', help='display a webcam window', is_flag=True, default=False)
