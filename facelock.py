@@ -8,13 +8,92 @@ import click
 import platform
 import sys
 import tempfile
+import configparser
+import requests
+import pickle
+import pathlib
+import json
+
 from pid.decorator import pidfile
 
 
 class FaceLock(object):
 
-    def __init__(self):
-        pass
+    def __init__(self, config_file='facelock.cfg'):
+        self.config = configparser.ConfigParser()
+        self.config.read(config_file)
+        self.face_detect_headers = {'Content-Type': 'application/octet-stream',
+                                    'returnFaceAttributes': 'age,gender,glasses, hair',
+                                    'Ocp-Apim-Subscription-Key': self.config['DEFAULT']['KEY1']}
+
+        self.face_verify_headers = {'Content-Type': 'application/json',
+                                    'Ocp-Apim-Subscription-Key': self.config['DEFAULT']['KEY1']}
+
+        self.face_detect_endpoint = '/face/v1.0/detect'
+        self.face_verify_endpoint = 'face/v1.0/verify'
+        self.model = dict()
+
+    def save_reference_face(self, ref_image_data):
+
+        try:
+            response = requests.post(url=self.config['DEFAULT']['URL']+self.face_detect_endpoint,
+                                     data=ref_image_data,
+                                     headers=self.face_detect_headers)
+            self.model = json.loads(response.content)[0]
+            self.model['time'] = time.time()
+            self.model['image'] = ref_image_data
+            pickle.dump(self.model, open(self.config['DEFAULT']['MODEL_FILE'], "wb"))
+
+        except requests.ConnectionError as e:
+            log.error("failed to connect to %s: s" % (self.config['DEFAULT']['URL']+self.face_detect_endpoint, e))
+
+    def face_verify(self, image_data):
+        """
+        verify an face image is the same person as one stored earlier
+        :param image_data:
+        :return:
+        """
+        try:
+            response = requests.post(url=self.config['DEFAULT']['URL']+self.face_detect_endpoint,
+                                     data=image_data,
+                                     headers=self.face_detect_headers)
+            data_dict = dict()
+            response_dict = json.loads(response.content)[0]
+
+            data_dict['faceId1'] = response_dict['faceId']
+            # reference faceId
+            data_dict['faceId2'] = self.model['faceId']
+
+            response2 = requests.post(url=self.config['DEFAULT']['URL']+self.face_verify_endpoint,
+                                      data=json.dumps(data_dict),
+                                      headers=self.face_verify_headers)
+            response_dict2 = json.loads(response2.content)[0]
+            return response_dict2['confidence']
+
+        except requests.ConnectionError as e:
+            log.error("failed to connect to %s: s" % (self.config['DEFAULT']['URL'], e))
+
+    def refresh_model(self):
+        """
+        if there is a face image and faceID saved the we don't need to POST API
+        otherwise save the info to pickle for later use
+        :return: a fresh model (<24 hr old)
+        """
+        try:
+            model = pickle.load(open(self.config['DEFAULT']['MODEL_FILE'], "rb"))
+            last_detect_time = model['time']
+            current_time_stamp = time.time()
+            # the face id returned by the Azure face detect api is valid for 24 hours,
+            # after that we need to request a new face detect api call
+            if current_time_stamp - last_detect_time > 24*3600:
+                r = requests.post(url=self.config['DEFAULT']['URL'] + self.face_detect_endpoint,
+                                  data=model['data'],
+                                  headers=self.face_detect_headers)
+                model.update(r)
+
+            return model
+        except (OSError, IOError) as e:
+            return None
 
     def lock_screen(self) -> None:
         """
@@ -109,7 +188,8 @@ def main(trigger_seconds, sleep_seconds, display, always):
     :return:
     """
     facelock = FaceLock()
-    facelock.run(trigger_seconds, sleep_seconds, display, always)
+    facelock.face_detect('wei.jpg')
+    # facelock.run(trigger_seconds, sleep_seconds, display, always)
 
 
 if __name__ == '__main__':
