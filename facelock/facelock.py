@@ -2,7 +2,6 @@ import cv2
 import os
 import logging as log
 import datetime as dt
-from time import sleep
 import time
 import click
 import platform
@@ -11,9 +10,10 @@ import tempfile
 import configparser
 import requests
 import pickle
-import pathlib
 import json
-
+import urllib
+from time import sleep
+from urllib.parse import urlparse
 from pid.decorator import pidfile
 
 
@@ -22,28 +22,57 @@ class FaceLock(object):
     def __init__(self, config_file='facelock.cfg'):
         self.config = configparser.ConfigParser()
         self.config.read(config_file)
-        self.face_detect_headers = {'Content-Type': 'application/octet-stream',
-                                    'returnFaceAttributes': 'age,gender,glasses, hair',
+        self.face_detect_headers = {'returnFaceAttributes': 'age,gender,glasses, hair',
                                     'Ocp-Apim-Subscription-Key': self.config['DEFAULT']['KEY1']}
 
         self.face_verify_headers = {'Content-Type': 'application/json',
                                     'Ocp-Apim-Subscription-Key': self.config['DEFAULT']['KEY1']}
 
         self.face_detect_endpoint = '/face/v1.0/detect'
-        self.face_verify_endpoint = 'face/v1.0/verify'
+        self.face_verify_endpoint = '/face/v1.0/verify'
         self.model = dict()
 
-    def save_reference_face(self, ref_image_data):
+    def read_image(self, image):
+        if isinstance(image, str):
+            parsed_url = urlparse(image)
+            # image input is a http resource
+            if parsed_url.scheme == 'http' or parsed_url.scheme == 'https':
+                response = urllib.request.urlopen(image)
+                data = response.read()
+            else:
+                # if the image input is a string indicating local file
+                with open(image, 'rb') as f:
+                    data = f.read()
+
+        elif isinstance(image, bytes):
+            data = image
+
+        else:
+            raise ValueError("input must be a image file url or binary image data")
+
+        return data
+
+    def save_reference_face(self, ref_image_url):
+
+        parsed_url = urlparse(ref_image_url)
+        header = self.face_detect_headers.copy()
+        # http image link
+        if parsed_url.scheme == 'http' or parsed_url.scheme == 'https':
+            header['Content-Type'] = 'application/json'
+            payload = json.dumps({'url': ref_image_url})
+        else:
+            header['Content-Type'] = 'application/octet-stream'
+            payload = self.read_image(ref_image_url)
 
         try:
             response = requests.post(url=self.config['DEFAULT']['URL']+self.face_detect_endpoint,
-                                     data=ref_image_data,
-                                     headers=self.face_detect_headers)
+                                     data=payload,
+                                     headers=header)
             self.model = json.loads(response.content)[0]
             self.model['time'] = time.time()
-            self.model['image'] = ref_image_data
-            pickle.dump(self.model, open(self.config['DEFAULT']['MODEL_FILE'], "wb"))
-
+            self.model['image'] = ref_image_url
+            # pickle.dump(self.model, open(self.config['DEFAULT']['MODEL_FILE'], "wb"))
+            return response.status_code
         except requests.ConnectionError as e:
             log.error("failed to connect to %s: s" % (self.config['DEFAULT']['URL']+self.face_detect_endpoint, e))
 
@@ -54,9 +83,12 @@ class FaceLock(object):
         :return:
         """
         try:
+            payload = self.read_image(image_data)
+            header = self.face_detect_headers.copy()
+            header['Content-Type'] = 'application/octet-stream'
             response = requests.post(url=self.config['DEFAULT']['URL']+self.face_detect_endpoint,
-                                     data=image_data,
-                                     headers=self.face_detect_headers)
+                                     data=payload,
+                                     headers=header)
             data_dict = dict()
             response_dict = json.loads(response.content)[0]
 
@@ -67,11 +99,13 @@ class FaceLock(object):
             response2 = requests.post(url=self.config['DEFAULT']['URL']+self.face_verify_endpoint,
                                       data=json.dumps(data_dict),
                                       headers=self.face_verify_headers)
-            response_dict2 = json.loads(response2.content)[0]
+            response_dict2 = json.loads(response2.content)
             return response_dict2['confidence']
 
-        except requests.ConnectionError as e:
-            log.error("failed to connect to %s: s" % (self.config['DEFAULT']['URL'], e))
+        except requests.exceptions.RequestException as e:
+            log.error("Error: {1}".format(e.strerror))
+        # except requests.ConnectionError as e:
+        #     log.error("failed to connect to %s: %s" % (self.config['DEFAULT']['URL'], e))
 
     def refresh_model(self):
         """
@@ -94,6 +128,9 @@ class FaceLock(object):
             return model
         except (OSError, IOError) as e:
             return None
+
+    def save_model(self):
+        pickle.dump(self.model, open(self.config['DEFAULT']['MODEL_FILE'], "wb"))
 
     def lock_screen(self) -> None:
         """
