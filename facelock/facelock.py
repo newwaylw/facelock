@@ -12,9 +12,12 @@ import requests
 import pickle
 import json
 import urllib
+import io
 from time import sleep
 from urllib.parse import urlparse
 from pid.decorator import pidfile
+from PIL import Image
+
 
 
 class FaceLock(object):
@@ -68,27 +71,51 @@ class FaceLock(object):
             response = requests.post(url=self.config['DEFAULT']['URL']+self.face_detect_endpoint,
                                      data=payload,
                                      headers=header)
+
+            # no face detected
+            if response.content == b'[]':
+                log.warning('no face detected.')
+                raise ValueError("input image has no face!")
+
             self.model = json.loads(response.content)[0]
             self.model['time'] = time.time()
             self.model['image'] = ref_image_url
+            log.debug('saving model:', self.model)
             # pickle.dump(self.model, open(self.config['DEFAULT']['MODEL_FILE'], "wb"))
             return response.status_code
         except requests.ConnectionError as e:
             log.error("failed to connect to %s: s" % (self.config['DEFAULT']['URL']+self.face_detect_endpoint, e))
 
+    def save_model(self):
+        pickle.dump(self.model, open(self.config['DEFAULT']['MODEL_FILE'], "wb"))
+
+    def load_model(self):
+        return pickle.load(open(self.config['DEFAULT']['MODEL_FILE'], "rb"))
+
     def face_verify(self, image_data):
         """
         verify an face image is the same person as one stored earlier
+        TODO: this method takes two api call, which is expensive for free account - only 20 api calls per minute.
+        TODO: How about use openCV to filter no face senario, and only use the Azure API for correct face?
         :param image_data:
         :return:
         """
         try:
+            self.model = self.load_model()
             payload = self.read_image(image_data)
             header = self.face_detect_headers.copy()
             header['Content-Type'] = 'application/octet-stream'
             response = requests.post(url=self.config['DEFAULT']['URL']+self.face_detect_endpoint,
                                      data=payload,
                                      headers=header)
+
+            # no face detected
+            if response.content == b'[]':
+                log.warning('no face detected.')
+                return None, None
+
+            log.debug('detect response.content={}'.format(json.loads(response.content)))
+
             data_dict = dict()
             response_dict = json.loads(response.content)[0]
 
@@ -96,11 +123,13 @@ class FaceLock(object):
             # reference faceId
             data_dict['faceId2'] = self.model['faceId']
 
-            response2 = requests.post(url=self.config['DEFAULT']['URL']+self.face_verify_endpoint,
-                                      data=json.dumps(data_dict),
-                                      headers=self.face_verify_headers)
-            response_dict2 = json.loads(response2.content)
-            return response_dict2['confidence']
+            response_verify = requests.post(url=self.config['DEFAULT']['URL']+self.face_verify_endpoint,
+                                            data=json.dumps(data_dict),
+                                            headers=self.face_verify_headers)
+
+            log.debug('verify response.content={}'.format(json.loads(response_verify.content)))
+            response_dict2 = json.loads(response_verify.content)
+            return response_dict, response_dict2
 
         except requests.exceptions.RequestException as e:
             log.error("Error: {1}".format(e.strerror))
@@ -114,7 +143,7 @@ class FaceLock(object):
         :return: a fresh model (<24 hr old)
         """
         try:
-            model = pickle.load(open(self.config['DEFAULT']['MODEL_FILE'], "rb"))
+            model = self.load_model()
             last_detect_time = model['time']
             current_time_stamp = time.time()
             # the face id returned by the Azure face detect api is valid for 24 hours,
@@ -128,9 +157,6 @@ class FaceLock(object):
             return model
         except (OSError, IOError) as e:
             return None
-
-    def save_model(self):
-        pickle.dump(self.model, open(self.config['DEFAULT']['MODEL_FILE'], "wb"))
 
     def lock_screen(self) -> None:
         """
@@ -151,13 +177,9 @@ class FaceLock(object):
             raise Exception('Unsupported OS platform: %s' % os_type)
 
     def run(self, delay_seconds, sleep_seconds, display, always):
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-        log.basicConfig(level=log.INFO)
-
         video_capture = cv2.VideoCapture(0)
-        anterior = 0
+        trigger = int(delay_seconds / sleep_seconds)
         counter = 0
-        trigger = int(delay_seconds/sleep_seconds)
 
         while True:
             t1 = time.time()
@@ -167,54 +189,122 @@ class FaceLock(object):
                 pass
 
             ret, frame = video_capture.read()
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            frame = cv2.resize(frame, (300, 200))
+            img = Image.fromarray(frame, 'RGB')
+            img_byte_arr = io.BytesIO()
+            img.save(img_byte_arr, format='JPEG')
+            # img.save('webcam_capture.jpg', format='JPEG')
+            img_byte_arr = img_byte_arr.getvalue()
 
-            faces = face_cascade.detectMultiScale(
-                gray,
-                scaleFactor=1.1,
-                minNeighbors=5,
-                minSize=(50, 50)
-            )
+            detect_response, verify_response = self.face_verify(img_byte_arr)
 
-            if len(faces) < 1:
+            if detect_response is None:
                 counter += 1
-                log.info("[%s] no face detected, counter=%d" % (dt.datetime.now(), counter))
+                log.info('No face detected, counter = {}'.format(counter))
 
                 if counter > trigger:
                     self.lock_screen()
 
-                    if not always:
-                        video_capture.release()
-                        cv2.destroyAllWindows()
-                        sys.exit()
+                t2 = time.time()
+                sleep_time = max(0, sleep_seconds - (t2 - t1))
+                time.sleep(sleep_time)  # Sleep for x second, discounting the running time of the program
+                continue
 
-            if anterior != len(faces):
-                anterior = len(faces)
-                log.info("[%s] faces: %d" % (dt.datetime.now(), len(faces)))
+            face_rectangle = detect_response['faceRectangle']
+            confidence = verify_response['confidence']
+            if confidence < float(self.config['DEFAULT']['RECOGNITION_THRESHOLD']):
+                counter += 1
+                log.info('Wrong face detected, counter = {}'.format(counter))
+            else:
                 counter = 0
+                log.info('Your face detected, reset counter to {}'.format(counter))
 
-            if display:
-                # Draw a rectangle around the faces
-                for (x, y, w, h) in faces:
-                    cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-                # Display the resulting frame
-                frame = cv2.resize(frame, (300, 200))
-                cv2.imshow('Face Detection', frame)
-                cv2.waitKey(200)
+            if display and confidence >= float(self.config['DEFAULT']['RECOGNITION_THRESHOLD']):
+                x = face_rectangle['left']
+                y = face_rectangle['top']
+                w = face_rectangle['width']
+                h = face_rectangle['height']
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+            cv2.imshow('Face Recognition', frame)
+            cv2.waitKey(200)
+
+            if counter > trigger:
+                self.lock_screen()
 
             t2 = time.time()
-            sleep_time = max(0, sleep_seconds-(t2-t1))
+            sleep_time = max(0, sleep_seconds - (t2 - t1))
             time.sleep(sleep_time)  # Sleep for x second, discounting the running time of the program
 
+    # def run_cv(self, delay_seconds, sleep_seconds, display, always):
+    #     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    #     log.basicConfig(level=log.DEBUG)
+    #
+    #     video_capture = cv2.VideoCapture(0)
+    #     anterior = 0
+    #     counter = 0
+    #     trigger = int(delay_seconds/sleep_seconds)
+    #
+    #     while True:
+    #         t1 = time.time()
+    #         if not video_capture.isOpened():
+    #             print('Unable to load camera.')
+    #             sleep(3)
+    #             pass
+    #
+    #         ret, frame = video_capture.read()
+    #         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    #
+    #         faces = face_cascade.detectMultiScale(
+    #             gray,
+    #             scaleFactor=1.1,
+    #             minNeighbors=5,
+    #             minSize=(50, 50)
+    #         )
+    #
+    #         if len(faces) < 1:
+    #             counter += 1
+    #             log.info("[%s] no face detected, counter=%d" % (dt.datetime.now(), counter))
+    #
+    #             if counter > trigger:
+    #                 self.lock_screen()
+    #
+    #                 if not always:
+    #                     video_capture.release()
+    #                     cv2.destroyAllWindows()
+    #                     sys.exit()
+    #
+    #         if anterior != len(faces):
+    #             anterior = len(faces)
+    #             log.info("[%s] faces: %d" % (dt.datetime.now(), len(faces)))
+    #             counter = 0
+    #
+    #         if display:
+    #             # Draw a rectangle around the faces
+    #             for (x, y, w, h) in faces:
+    #                 cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+    #             # Display the resulting frame
+    #             frame = cv2.resize(frame, (300, 200))
+    #             cv2.imshow('Face Detection', frame)
+    #             cv2.waitKey(200)
+    #
+    #         t2 = time.time()
+    #         sleep_time = max(0, sleep_seconds-(t2-t1))
+    #         time.sleep(sleep_time)  # Sleep for x second, discounting the running time of the program
+
+
+@click.group()
+def main():
+    log.basicConfig(level=log.DEBUG)
 
 @pidfile(piddir=os.path.join(tempfile.gettempdir(), sys.argv[0]+'.pid'))
-@click.command()
-@click.option('-t', '--trigger-seconds', default=20,
-              help='activate command after this many seconds without detecting a face')
-@click.option('--sleep-seconds', help='sleep every this many seconds', default=0.5)
+@main.command()
+@click.option('-t', '--trigger-seconds', default=25,
+              help='activate command after this many seconds without detecting your face')
+@click.option('--sleep-seconds', help='sleep every this many seconds', default=6)
 @click.option('--display', help='display a webcam window', is_flag=True, default=False)
 @click.option('--always', help='do not exist after screen is locked', is_flag=True, default=False)
-def main(trigger_seconds, sleep_seconds, display, always):
+def fit(trigger_seconds, sleep_seconds, display, always):
     """
     program entry
 
@@ -225,8 +315,15 @@ def main(trigger_seconds, sleep_seconds, display, always):
     :return:
     """
     facelock = FaceLock()
-    facelock.face_detect('wei.jpg')
-    # facelock.run(trigger_seconds, sleep_seconds, display, always)
+    facelock.run(trigger_seconds, sleep_seconds, display, always)
+
+
+@main.command()
+@click.argument('image_location')
+def train(image_location):
+    facelock = FaceLock()
+    facelock.save_reference_face(image_location)
+    facelock.save_model()
 
 
 if __name__ == '__main__':

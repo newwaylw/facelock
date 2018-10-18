@@ -19,5 +19,6 @@ class FaceLockTestCase(unittest.TestCase):
 
     def test_face_verify(self):
         self.facelock.save_reference_face(self.image1_url)
-        confidence = self.facelock.face_verify(self.image2_url)
+        response = self.facelock.face_verify(self.image2_url)
+        confidence = response['confidence']
         self.assertGreater(confidence, 0.5)
