@@ -178,6 +178,7 @@ class FaceLock(object):
 
     def run(self, delay_seconds, sleep_seconds, display, always):
         video_capture = cv2.VideoCapture(0)
+        frame_rate = video_capture.get(5) #frame rate
         trigger = int(delay_seconds / sleep_seconds)
         counter = 0
 
@@ -188,7 +189,9 @@ class FaceLock(object):
                 sleep(3)
                 pass
 
+            frame_id = video_capture.get(1) # current frame number
             ret, frame = video_capture.read()
+            log.debug('frame rate={}, frame id={}'.format(frame_rate, frame_id))
             frame = cv2.resize(frame, (300, 200))
             img = Image.fromarray(frame, 'RGB')
             img_byte_arr = io.BytesIO()
@@ -299,7 +302,7 @@ def main():
 
 @pidfile(piddir=os.path.join(tempfile.gettempdir(), sys.argv[0]+'.pid'))
 @main.command()
-@click.option('-t', '--trigger-seconds', default=25,
+@click.option('-t', '--trigger-seconds', default=30,
               help='activate command after this many seconds without detecting your face')
 @click.option('--sleep-seconds', help='sleep every this many seconds', default=6)
 @click.option('--display', help='display a webcam window', is_flag=True, default=False)
