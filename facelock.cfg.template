@@ -1,5 +1,3 @@
 [DEFAULT]
-URL = https://uksouth.api.cognitive.microsoft.com
-KEY1 = Microsoft Azure Face API KEY1
-KEY2 = Microsoft Azure Face API KEY2
+KEY = Microsoft Azure Face API KEY
 MODEL_FILE=model save path.pkl

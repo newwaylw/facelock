@@ -3,4 +3,5 @@ opencv-python==3.4.3.18
 pid==2.2.0
 pidfile==0.1.1
 python-dateutil==2.6.1
-Pillow
+requests==2.14.2
+Pillow==4.2.1
