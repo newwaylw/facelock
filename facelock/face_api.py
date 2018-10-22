@@ -120,6 +120,11 @@ def face_verify(api_key, model, image_data):
 
     log.debug('detect response.content={}'.format(json.loads(response.content)))
 
+    # no face detected
+    if response.content ==b'[]':
+        log.debug('No face detected!')
+        return return_dict
+
     data_dict = dict()
     response_dict = json.loads(response.content)[0]
 
