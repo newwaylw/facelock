@@ -35,12 +35,12 @@ in Cognitive Service.
 
   ````
 
+If the reference face is absent for a set amount of time, the script will execute a list of commands specified in
+the config file.
+
 ## Limitations
 Microsoft's Free account has a 20 API calls/minute request limit. For Face recognition, it takes two API calls, (Detect + Verify), so I can only sample my frame every 6 seconds.
 the Face Detect API call returns a faceId, it is valid for 24 hours only, after this, you need to re-run 
 ````
 facelock.py train
 ````
-
-## Future work
-The script can be quite flexible, because it is simply execute some command when the 'right' face is absent.

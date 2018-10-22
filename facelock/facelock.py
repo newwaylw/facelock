@@ -3,11 +3,12 @@ import os
 import logging as log
 import time
 import click
-import platform
+import subprocess
 import sys
 import tempfile
 import configparser
 import pickle
+import json
 from time import sleep
 from pid.decorator import pidfile
 from face_api import read_image, frame2img, get_reference_face_model, face_verify
@@ -22,34 +23,44 @@ class FaceLock(object):
 
         self.model = dict()
 
-    def save_model(self, file):
+    def save_model(self, file) -> None:
+        """
+        Serialize model to disk
+        :param file: destination file name
+        :return: None
+        """
         pickle.dump(self.model, open(file, "wb"))
 
     def load_model(self, model):
         self.model = model
 
-    def load_model_from_disk(self, file):
-        self.model = pickle.load(open(file, "rb"))
-
-    def lock_screen(self) -> None:
+    def load_model_from_disk(self, file) -> None:
         """
-        run screen lock command on different platforms
+        Load pickled model from disk
+        :param file: model path
         :return: None
         """
-        os_type = platform.system()
-        if os_type == 'Windows':
-            import ctypes
-            ctypes.windll.user32.LockWorkStation()
+        self.model = pickle.load(open(file, "rb"))
 
-        elif os_type == 'Linux':
-            os.popen('gnome-screensaver-command --lock > /dev/null &')
+    def execute(self, commands: list) -> None:
+        """
+        execute commands
+        :param commands: a list of commands, each command is a list as passed to subprocess.Popen()
+        :return: None
+        """
+        for command in commands:
+            print("command=", command)
+            log.debug('executing command:{}'.format(command))
+            subprocess.Popen(command)
 
-        elif os_type == 'Darwin':
-            os.popen('/System/Library/CoreServices/Menu\ Extras/user.menu/Contents/Resources/CGSession -suspend')
-        else:
-            raise Exception('Unsupported OS platform: %s' % os_type)
+    def verfity(self, api_key, commands, **kwargs) -> None:
+        """
 
-    def verfity(self, api_key, **kwargs):
+        :param api_key: Microsoft Cognitive Face API Key
+        :param commands: list of commands to execute
+        :param kwargs: extra params passing from arguments
+        :return: None
+        """
         face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
         video_capture = cv2.VideoCapture(0)
@@ -105,11 +116,12 @@ class FaceLock(object):
                     cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
             cv2.imshow('Face Recognition', frame)
-            cv2.waitKey(200)
+            if cv2.waitKey(kwargs['sleep_seconds']) & 0xFF == ord('q'):
+                break
 
             if counter >= trigger:
                 counter = 0
-                self.lock_screen()
+                self.execute(commands)
 
                 if not kwargs['always']:
                     video_capture.release()
@@ -162,8 +174,10 @@ def verify(ctx, **kwargs):
     facelock = FaceLock()
     api_key = ctx.obj['DEFAULT']['KEY']
     model_file = ctx.obj['DEFAULT']['MODEL_FILE']
+    print(ctx.obj['DEFAULT']['COMMANDS'])
+    commands = json.loads(ctx.obj['DEFAULT']['COMMANDS'])
     facelock.load_model_from_disk(model_file)
-    facelock.verfity(api_key, **kwargs)
+    facelock.verfity(api_key, commands, **kwargs)
 
 
 if __name__ == '__main__':

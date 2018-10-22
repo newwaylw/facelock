@@ -1,3 +1,8 @@
 [DEFAULT]
 KEY = Microsoft Azure Face API KEY
 MODEL_FILE=model save path.pkl
+# commands as lists that passed to subprocess.Popen()
+COMMANDS = [["open", "-a", "Google Chrome", "http://accounts.google.com/logout"],
+            ["/System/Library/CoreServices/Menu Extras/user.menu/Contents/Resources/CGSession", "-suspend"],
+            ['gnome-screensaver-command', '--lock']
+           ]
