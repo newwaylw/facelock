@@ -163,6 +163,7 @@ def train(ctx, image_location):
     model_file = ctx.obj['DEFAULT']['MODEL_FILE']
     facelock.load_model(get_reference_face_model(api_key, image_location))
     facelock.save_model(model_file)
+    log.info('Reference image from: {} saved'.format(image_location))
 
 
 @cli.command()
