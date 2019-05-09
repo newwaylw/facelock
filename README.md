@@ -25,22 +25,25 @@ in Cognitive Service.
 2. Rename facelock.cfg.template to facelock.cfg, add your KEY value to the file
 3. You need to 'train' a reference face (your face) from an image (JPEG etc), the image can be a local file or from the web:
   ````
-  facelock.py train [OPTIONS] IMAGE_LOCATION
+  python facelock/facelock.py train [OPTIONS] IMAGE_LOCATION
 
   ````
 
 4. Run:
   ````
-  facelock.py verify
+  python facelock/facelock.py verify
 
   ````
 
-## Limitations
-Microsoft's Free account has a 20 API calls/minute request limit. For Face recognition, it takes two API calls, (Detect + Verify), so I can only sample my frame every 6 seconds.
-the Face Detect API call returns a faceId, it is valid for 24 hours only, after this, you need to re-run 
-````
-facelock.py train
-````
+If the reference face is absent for a set amount of time, the script will execute a list of commands specified in
+the config file.
 
-## Future work
-The script can be quite flexible, because it is simply execute some command when the 'right' face is absent.
+## Limitations
+Microsoft's Free account has a 20 API calls/minute request limit. For Face recognition, it takes two API calls, (Detect + Verify),
+that means the maximum sampling per minute is 6.
+If you use a more frequent *--sample-interval* value you will get **'Too Many Requests'** Error.
+
+The Face Detect API call returns a faceId, it is valid for 24 hours only, after this, you need to re-run 
+````
+python facelock/facelock.py train
+````
