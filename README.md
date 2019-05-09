@@ -1,3 +1,5 @@
+[![Build Status](https://dev.azure.com/newway0386/newway/_apis/build/status/newwaylw.facelock?branchName=master)](https://dev.azure.com/newway0386/newway/_build/latest?definitionId=1&branchName=master)
+
 # FaceLock
 lock your computer screen when (your) face is not detected!
 
