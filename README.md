@@ -3,6 +3,9 @@
 # FaceLock
 lock your computer screen when (your) face is not detected!
 
+[![Build Status](https://dev.azure.com/newway0386/newway/_apis/build/status/newwaylw.facelock?branchName=master)](https://dev.azure.com/newway0386/newway/_build/latest?definitionId=1&branchName=master)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 ## Background
 My work place [ComplyAdvantage](https://complyadvantage.com) has this 'policy' that if you leave your laptop unlocked and someone else manage to send an email to the whole company from your account, you then need to buy donuts for the company.
 
