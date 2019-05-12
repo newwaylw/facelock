@@ -1,7 +1,5 @@
-[![Build Status](https://dev.azure.com/newway0386/newway/_apis/build/status/newwaylw.facelock?branchName=master)](https://dev.azure.com/newway0386/newway/_build/latest?definitionId=1&branchName=master)
-
 # FaceLock
-lock your computer screen when (your) face is not detected! 
+Execute some commands when your face is not detected! 
 
 [![Build Status](https://dev.azure.com/newway0386/newway/_apis/build/status/newwaylw.facelock?branchName=master)](https://dev.azure.com/newway0386/newway/_build/latest?definitionId=1&branchName=master)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
