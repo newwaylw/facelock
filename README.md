@@ -1,7 +1,7 @@
 [![Build Status](https://dev.azure.com/newway0386/newway/_apis/build/status/newwaylw.facelock?branchName=master)](https://dev.azure.com/newway0386/newway/_build/latest?definitionId=1&branchName=master)
 
 # FaceLock
-lock your computer screen when (your) face is not detected!
+lock your computer screen when (your) face is not detected! 
 
 [![Build Status](https://dev.azure.com/newway0386/newway/_apis/build/status/newwaylw.facelock?branchName=master)](https://dev.azure.com/newway0386/newway/_build/latest?definitionId=1&branchName=master)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
@@ -25,16 +25,17 @@ So I want face recognition instead. But I certainly don't have millions of faces
 or [ResNet](https://arxiv.org/abs/1512.03385). So instead I spent sometime to integrate the [Microsoft Cognitive Face API](https://westus.dev.cognitive.microsoft.com/docs/services/563879b61984550e40cbbe8d/operations/563879b61984550f30395236) to my script. 
 
 ## Usage
-1. Get a [FREE Microsoft Azure](https://azure.microsoft.com/en-gb/free/) account, and get a API key for Face API
+1. Use Python 3.6+
+2. Get a [FREE Microsoft Azure](https://azure.microsoft.com/en-gb/free/) account, and get a API key for Face API
 in Cognitive Service.
-2. Rename facelock.cfg.template to facelock.cfg, add your KEY value to the file
-3. You need to 'train' a reference face (your face) from an image (JPEG etc), the image can be a local file or from the web:
+3. Rename facelock.cfg.template to facelock.cfg, add your KEY value to the file
+4. You need to 'train' a reference face (your face) from an image (JPEG etc), the image can be a local file or from the web:
   ````
   python facelock/facelock.py train [OPTIONS] IMAGE_LOCATION
 
   ````
 
-4. Run:
+5. Run:
   ````
   python facelock/facelock.py verify
 
