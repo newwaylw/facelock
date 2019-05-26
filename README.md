@@ -26,8 +26,13 @@ or [ResNet](https://arxiv.org/abs/1512.03385). So instead I spent sometime to in
 1. Use Python 3.6+
 2. Get a [FREE Microsoft Azure](https://azure.microsoft.com/en-gb/free/) account, and get a API key for Face API
 in Cognitive Service.
-3. Rename facelock.cfg.template to facelock.cfg, add your KEY value to the file
-4. You need to 'train' a reference face (your face) from an image (JPEG etc), the image can be a local file or from the web:
+3. Rename facelock.cfg.template to facelock.cfg, add your KEY value to the file, and add any commands you would like to execute, for detailed usage, refer to [python's subprocess](https://docs.python.org/3/library/subprocess.html), for example, to logout Google services in MacOS:
+ ````
+ COMMANDS = [["open", "-a", "Google Chrome", "http://accounts.google.com/logout"]]
+ ````
+
+
+4. You need to 'train' a reference face (your face) from an image (JPEG etc), please use a good quality picture showing your front face. The image can be a local file or from the web:
   ````
   python facelock/facelock.py train [OPTIONS] IMAGE_LOCATION
 
