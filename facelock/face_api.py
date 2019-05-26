@@ -79,13 +79,13 @@ def get_reference_face_model(api_key, ref_image_url):
                              headers=header)
 
     response.raise_for_status()
-
+    response_json = json.loads(response.content)
     # no face detected
-    if response.content == b'[]':
+    if not response_json:
         log.warning('no face detected.')
         raise ValueError("input image has no face!")
 
-    model.update(json.loads(response.content)[0])
+    model.update(response_json[0])
     model['time'] = time.time()
     model['image'] = ref_image_url
     log.debug('saving model:{}'.format(model))
@@ -116,12 +116,16 @@ def face_verify(api_key, model, image_data):
                              data=payload,
                              headers=face_detect_headers)
 
+    response_json = json.loads(response.content)
+    if response.status_code == 400:
+        log.error('Error code: {}, message: {}'.format(response_json['error']['code'],
+                                                       response_json['error']['message']))
     response.raise_for_status()
 
-    log.debug('detect response.content={}'.format(json.loads(response.content)))
+    log.debug('detect response.content={}'.format(response_json))
 
     # no face detected
-    if response.content ==b'[]':
+    if not response_json:
         log.debug('No face detected!')
         return return_dict
 
@@ -133,11 +137,16 @@ def face_verify(api_key, model, image_data):
     return_dict['faceRectangle'] = response_dict['faceRectangle']
     # reference faceId
     data_dict['faceId2'] = model['faceId']
-
     response_verify = requests.post(url=API_URL + VERIFY_ENDPOINT,
                                     data=json.dumps(data_dict),
                                     headers=face_verify_headers)
-    log.debug('verify response.content={}'.format(json.loads(response_verify.content)))
+
+    response_json = json.loads(response_verify.content)
+    log.debug('verify response.content={}'.format(response_json))
+
+    if response_verify.status_code == 400:
+        log.error('Error code: {}, message: {}'.format(response_json['error']['code'],
+                                                     response_json['error']['message']))
     response_verify.raise_for_status()
 
     response_dict2 = json.loads(response_verify.content)
