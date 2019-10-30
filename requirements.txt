@@ -4,4 +4,4 @@ pid==2.2.0
 pidfile==0.1.1
 python-dateutil==2.6.1
 requests==2.20.0
-Pillow==4.2.1
+Pillow==6.2.0
