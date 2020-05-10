@@ -37,14 +37,24 @@ in Cognitive Service.
   python facelock/facelock.py train [OPTIONS] IMAGE_LOCATION
 
   ````
-
-5. Run:
+  A `model.pkl` file will be generated.
+  
+5. Run (with default paramters):
   ````
   python facelock/facelock.py verify
 
   ````
+  
+  use 
+  ````
+  python facelock/facelock.py verify --help
 
-If the reference face is absent for a set amount of time, the script will execute a list of commands specified in
+  ````
+  to get the options
+
+If the reference face is absent for a set amount of time (default 30 
+seconds), the script 
+will execute a list of commands specified in
 the config file.
 
 ## Limitations

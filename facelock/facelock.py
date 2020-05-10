@@ -174,7 +174,7 @@ def train(ctx, image_location):
 @click.option('--threshold', default=0.5,
               show_default=True,
               help='threshold for face recognition')
-@click.option('--sample-interval', default=1, type=float, show_default=True,
+@click.option('--sample-interval', default=5, type=float, show_default=True,
               help='sample a frame every x seconds')
 @click.option('--display', is_flag=True, default=False,
               help='display a webcam window')
