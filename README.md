@@ -7,7 +7,7 @@ Execute some commands when your face is not detected!
 ## Background
 My work place [ComplyAdvantage](https://complyadvantage.com) has this 'policy' that if you leave your laptop unlocked and someone else manage to send an email to the whole company from your account, you then need to buy donuts for the company.
 
-I fell victim on the second day on joining! 
+I fell victim on the second day upon joining! 
 
 I was so upset that I have to do something, I knew it won't be my last time to get 'donut-ed'. 
 
@@ -16,7 +16,7 @@ I was so upset that I have to do something, I knew it won't be my last time to g
 I first decided to use openCV's face detection to check for the absence of a face via my front webcam - 
 If there is no face detected in X seconds, my screen will lock.
 
-It works, but I am not very satisfied, since it is a face recognition algorithm, any face will do.
+It works, but I am not very satisfied, since it is a face detection algorithm, any face will do.
 If my colleague quickly get in front of my laptop before it locks, then it fails.
 
 So I want face recognition instead. But I certainly don't have millions of faces and the GPU power to train a robust [AlexNet](https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf) 
