@@ -17,9 +17,9 @@ I first decided to use openCV's face detection to check for the absence of a fac
 If there is no face detected in X seconds, my screen will lock.
 
 It works, but I am not very satisfied, since it is a face detection algorithm, any face will do.
-If my colleague quickly get in front of my laptop before it locks, then it fails.
+If any of my colleague quickly get in front of my laptop before it locks, then it fails.
 
-So I want face recognition instead. But I certainly don't have millions of faces and the GPU power to train a robust [AlexNet](https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf) 
+What I need is face recognition. I certainly don't have millions of images and the GPU power to train a robust [AlexNet](https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf) 
 or [ResNet](https://arxiv.org/abs/1512.03385). So instead I spent sometime to integrate the [Microsoft Cognitive Face API](https://westus.dev.cognitive.microsoft.com/docs/services/563879b61984550e40cbbe8d/operations/563879b61984550f30395236) to my script. 
 
 ## Usage
